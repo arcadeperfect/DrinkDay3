@@ -11,18 +11,20 @@ class screen_display(object):
         self.mult = mult
         self.X *= self.mult
         self.Y *= self.mult
-        image_location = "./resources/images"
+        self.image_location = "./resources/images"
         #self.image = self.load_image(os.path.join(image_location, drinkImage.file_name))
 
-        self.image = self.load_image("dd.png")
+        #self.image = self.load_image("./resources/images/drink5.png -z=1")
 
         self.display_surface = pygame.display.set_mode((self.X, self.Y))
-        pygame.display.set_caption('Image')
+        self.image = self.load_image(os.path.join(self.image_location, drinkImage.file_name))
+
         self.display_surface.blit(self.image, (0, 0))
         pygame.display.update()
+        self.update()
 
 
-    def cycle(self):
+    def update(self):
 
         self.display_surface.blit(self.image, (0, 0))
 
@@ -37,5 +39,10 @@ class screen_display(object):
         pygame.display.update()
 
     def load_image(self, path):
-        self.image = pygame.transform.scale(pygame.image.load("dd.png"), (self.X, self.Y))
+        self.image = pygame.transform.scale(pygame.image.load(path), (self.X, self.Y))
+        self.update()
         return self.image
+
+    def update_image(self, drinkImage):
+        self.image = self.load_image(os.path.join(self.image_location, drinkImage.file_name))
+        self.update()

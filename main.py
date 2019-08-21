@@ -1,9 +1,8 @@
 from sys import platform
 import logging
 import time
-
+import datetime
 from dd_screen_display import screen_display
-# from dd_download import download, list_downloaded_images
 import dd
 
 if platform == "darwin":
@@ -13,37 +12,50 @@ else:
     pi = True
     osx = False
 
-# if osx:
-#     p = screen_display('d.png', mult = 30)
-
-
-display = True
+display_live = True
 path = './resources/images'
-s = dd.Sync(path)
-r = dd.Ranks(path)
+interval = 5
+sync_interval = 60
+drink = dd.DrinkOrNotDrink(invert=True)
+
+sync = dd.Sync(path)
+rank = dd.Ranks(path)
+selection = rank.select()
+display = screen_display(selection, mult=30)
+
+#TODO: handle case when no images
+#TODO: why doesn't closing window quit any more
+#TODO: handle when no internet connection
+#TODO: split syncing into own thread
+#TODO: why is syncing suddenly slow
+#TODO: current day is drinkday? class
 
 c = 0
 
-
 while True:
-    print(c)
 
-    if c % 50 == 0:         # check for new files every n loops
-        print('check')
-        s.sync_files()
+    if c == 0:
+        print("being loop")
+    #print(c)
+    drink.update()
+    print("drinkday is", drink.drink)
 
-    s=r.select()
+    time_since_check = (datetime.datetime.now()-sync.lastSync).total_seconds()
+
+    if time_since_check >= sync_interval:
+        print("check")
+        sync.sync_files()
+
+    time_since_selection = (datetime.datetime.now()-selection.time).total_seconds()
+
+    if time_since_selection >= interval:
+
+        selection = rank.select()
+        display.update_image(selection)
+
+    #rank.update()
 
 
-    if display:             # update display
-        if c == 0:
-            if osx:
-                p = screen_display(s, mult=30)
-            if pi:
-                print("do pi things")
-        p.cycle()
-        if c == 5:
-            p.load_image("dd.png")
-
-    time.sleep(0.1)
+    display.update()
+    time.sleep(0.5)
     c += 1

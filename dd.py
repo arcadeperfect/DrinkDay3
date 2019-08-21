@@ -3,6 +3,7 @@ import os
 import logging
 from os import listdir
 import datetime
+#from datetime import datetime
 import argparse
 import shlex
 from operator import itemgetter
@@ -10,7 +11,7 @@ from random import randint
 from pprint import pprint
 
 path = "./resources/images"
-current_day_drinkDay_state = 1
+current_day_drinkDay_state = 0
 format = "%(asctime)s: %(message)s"
 logging.basicConfig(format=format,
                     level=logging.INFO,
@@ -28,8 +29,10 @@ class Sync(object):
         self.path = path
         self.absolute_download_path = os.path.join(os.path.dirname(__file__), 'resources/images')
         self.sync_files()
+        self.lastSync = datetime.datetime.now()
 
     def sync_files(self):
+        print("syncing")
         address = 'ftp.rojanasakul.com'
         account = 'rjnskl@rojanasakul.com'
         password = '+1nWVNaIL|D"XS'
@@ -56,6 +59,7 @@ class Sync(object):
                 number_of_downloades += 1
 
         logging.info(f"downloaded {number_of_downloades} images")
+        self.lastSync = datetime.datetime.now()
 
     def list_downloaded_images(self, path):
         files = [x for x in os.listdir(path) if x[0] != '.']
@@ -73,12 +77,11 @@ class DrinkImage(object):
         self.specified_date = specified_date
         self.drink_day_state = drink_day_state
         self.score = score
-
         self.score_image()
+        self.time = None
 
     def score_image(self):
         #TODO: add some more scoring logic
-        #TODO: will it know the current drinkday state?
 
         if self.drink_day_state == current_day_drinkDay_state:
             self.score = 3
@@ -86,6 +89,8 @@ class DrinkImage(object):
         if self.specified_date == datetime.date.today():
             self.score += 5
 
+    def stamp_time(self):   # to record the time it was selected
+        self.time = datetime.datetime.now()
 
 class Parse(object):
 
@@ -117,12 +122,18 @@ class Parse(object):
 
         name = argument_list[0]
 
+        # convert date string from argument into datetime object
+        try:
+            date_object = datetime.date(int(options.date[0:2]) + 2000, int(options.date[2:4]), int(options.date[4:7]))
+            print(date_object)
+        except:
+            date_object = None
 
         image = DrinkImage(
             name=name,
             file_name=file_name,
             priority=options.priority,
-            specified_date=options.date,
+            specified_date=date_object,
             drink_day_state=options.drinkDay,
         )
 
@@ -158,8 +169,37 @@ class Ranks(object):
 
         pool = [x[2] for x in self.ranking if x[0] == self.ranking[0][0]] # create selection pool of entries sharing the highest score
         selection = pool[randint(0,len(pool)-1)]
+        selection.stamp_time()
+        print('selected', selection.name)
         return selection
 
+class DrinkOrNotDrink(object):
+
+    def __init__(self, invert=False):
+
+        self.invert = invert
+
+
+        self.update()
+
+    def update(self):
+
+        self.day = datetime.date.today()
+        self.dayOfYear = datetime.datetime.now().timetuple().tm_yday
+
+        if self.invert:
+            divide = 0
+        else:
+            divide = 1
+
+        if self.dayOfYear%2 == divide:
+            self.drink = True
+        else:
+            self.drink = False
+        return self.drink
+
+    def get(self):
+        return self.drink
 
 
 
