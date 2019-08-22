@@ -4,6 +4,7 @@ import time
 import datetime
 from dd_screen_display import screen_display
 import dd
+import threading
 
 if platform == "darwin":
     osx = True
@@ -12,50 +13,56 @@ else:
     pi = True
     osx = False
 
-display_live = True
+display_live = False
+sync_live = True
 path = './resources/images'
-interval = 5
-sync_interval = 60
-drink = dd.DrinkOrNotDrink(invert=True)
+update_interval = 5
+sync_interval = 10
 
-sync = dd.Sync(path)
+if sync_live:
+
+    sync = dd.Sync(path)
 rank = dd.Ranks(path)
 selection = rank.select()
-display = screen_display(selection, mult=30)
+display = screen_display(selection, mult=10)
+today = datetime.date.today()
+lastUpdate = datetime.datetime.now()
 
-#TODO: handle case when no images
-#TODO: why doesn't closing window quit any more
-#TODO: handle when no internet connection
-#TODO: split syncing into own thread
-#TODO: why is syncing suddenly slow
-#TODO: current day is drinkday? class
+
+# TODO: split syncing into own thread
+# TODO: why is syncing suddenly slow
+# TODO: replace prints with logs
+
 
 c = 0
-
 while True:
 
     if c == 0:
-        print("being loop")
-    #print(c)
-    drink.update()
-    print("drinkday is", drink.drink)
-
-    time_since_check = (datetime.datetime.now()-sync.lastSync).total_seconds()
-
-    if time_since_check >= sync_interval:
-        print("check")
-        sync.sync_files()
-
-    time_since_selection = (datetime.datetime.now()-selection.time).total_seconds()
-
-    if time_since_selection >= interval:
-
-        selection = rank.select()
-        display.update_image(selection)
-
-    #rank.update()
+        print("\n\n#### begin loop ####\n\n")
+    print(c)
 
 
-    display.update()
-    time.sleep(0.5)
+
+    # if reached sync interval, attempt sync
+    if sync_live:
+        # time since last SYNC attempt
+        time_since_check = (datetime.datetime.now() - sync.lastSync).total_seconds()
+
+        if time_since_check >= sync_interval:
+            print("check")
+            sync.sync_files()
+
+    # if reached selection interval, update image
+    if rank.selection_time_delta() >= update_interval:
+        print("interval update")
+        display.update_image(rank.select())  # update the image with new selection
+
+    # if day changes force an update
+    if not datetime.date.today() == today:
+        print("day change")
+        display.update_image(rank.select())  # update the image with new selection
+
+    display.update()  # update the display loop (needed for pygame eventloop to enable quitting)
+    today = datetime.date.today()
+    time.sleep(0.1)
     c += 1

@@ -3,38 +3,42 @@ import os
 import logging
 from os import listdir
 import datetime
-#from datetime import datetime
+# from datetime import datetime
 import argparse
 import shlex
 from operator import itemgetter
 from random import randint
 from pprint import pprint
+import configparser
+
 
 path = "./resources/images"
-current_day_drinkDay_state = 0
 format = "%(asctime)s: %(message)s"
 logging.basicConfig(format=format,
                     level=logging.INFO,
                     datefmt="%H:%M:%S")
+
 
 class Sync(object):
     # sync local image files with remote ftp
 
     def __init__(self, path):
         print("init sync")
-        self.path = path
+        self.config = configparser.ConfigParser()
+        self.config.sections()
+        self.config.read('ftp_config.ini')
+        self.path = self.config['main']['path']
+
         self.absolute_download_path = os.path.join(os.path.dirname(__file__), 'resources/images')
         self.sync_files()
         self.lastSync = datetime.datetime.now()
 
     def sync_files(self):
         try:
-            d = g
             print("syncing")
-            address = 'ftp.rojanasakul.com'
-            account = 'rjnskl@rojanasakul.com'
-            password = '+1nWVNaIL|D"XS'
-
+            address = self.config['main']['ftp_address']
+            account = self.config['main']['ftp_account']
+            password = self.config['main']['ftp_password']
             ignore = ['.', '..']
             listing = []
             files = []
@@ -58,15 +62,15 @@ class Sync(object):
 
             logging.info(f"downloaded {number_of_downloades} images")
             self.lastSync = datetime.datetime.now()
-        except:
-            print("syncing failed")
+        except Exception as e:
+            print("sync failed:")
+            print(e)
 
         self.lastSync = datetime.datetime.now()
 
     def list_downloaded_images(self, path):
         files = [x for x in os.listdir(path) if x[0] != '.']
         return files
-
 
 
 class Parse(object):
@@ -119,6 +123,7 @@ class Parse(object):
     def get_drink_images(self):
         return self.drink_image_list
 
+
 class DrinkImage(object):
 
     # class to hold the image and associated meta data, also calculates score
@@ -130,92 +135,88 @@ class DrinkImage(object):
         self.specified_date = specified_date
         self.drink_day_state = drink_day_state
         self.time = None
-        self.score = None
+        self.score = 0
 
 
 class Ranks(object):
 
     def __init__(self, path):
         print("init ranks")
-        #self.ranking = [] # don't think i need this
-        self.drinkObject = DrinkOrNotDrink(invert=False)     # boolean to invert current drinkDay state
-        self.drink = self.drinkObject.get()                 # determine if today is a drinkDay
-        self.path = path                                    # set location of image files
-        self.parse()                                        # create DrinkImage objects from files, create init score
-        self.sort()                                         # sort the ran by score
+        # self.ranking = [] # don't think i need this
+        self.drinkOrNotDrink = DrinkOrNotDrink()  # boolean to invert current drinkDay state
+        self.drink = self.drinkOrNotDrink.get()  # determine if today is a drinkDay
+        self.path = path  # set location of image files
+        self.parse()  # create DrinkImage objects from files, create init score
 
     def parse(self):
-        self.ranking = []
+
+        self.pool = []
         for i in Parse(path).get_drink_images():
-            score = self.score_image(i)
-            self.ranking.append([score, i.name, i])
+            self.pool.append(i)
+        if len(self.pool) == 0:
+            print("no images!")
+            exit()
 
-    def update_scores(self):
-
-        for i in self.ranking:
-            self.drinkObject.update()
-            thisScore = self.score_image(i[2])              # run on drinkImage, which is 3rd element in list
-            i[0] = thisScore                                # set first list element as score for sorting #TODO: refactor this into oblivion
-            i[2].score = thisScore                          # set drinkImage object's own score variable
-
-    def score_image(self,drinkImage):                       # logic to determine score
-        thisScore = 0
-        # print("scoring")
-        # print("self.drink = ", self.drink)
-        # print("drinkImage.drink_day_state = ", drinkImage.drink_day_state)
-        if self.drink == drinkImage.drink_day_state:
-            #drinkImage.score += 3
-            thisScore += 3
-
-        if drinkImage.specified_date == datetime.date.today():
-            #drinkImage.score += 5
-            thisScore += 5
-        return thisScore
-
-    def sort(self):
-        s = sorted(self.ranking, reverse=True, key=itemgetter(0))
-        self.ranking = s
-        return self.ranking
-
-    def select(self):
-
-        pool = [x[2] for x in self.ranking if x[0] == self.ranking[0][0]] # create selection pool of entries sharing the highest score
-        self.drinkObject.update()
-        self.update_scores()
-        selection = pool[randint(0,len(pool)-1)]
+    def select(self):  # select an image based on scoring and chaning conditions
+        self.drink = self.drinkOrNotDrink.get()
+        ranks = []
+        for i in self.pool:
+            if i.drink_day_state == self.drink:
+                self.score_image(i)
+                ranks.append([i.score, i])
+        ranks = sorted(ranks, reverse=True, key=itemgetter(0))
+        pool = [x[1] for x in ranks if x[0] == ranks[0][0]]
+        selection = pool[randint(0, len(pool) - 1)]
         self.lastSelectionTime = datetime.datetime.now()
         return selection
 
+    def score_image(self, drinkImage):  # logic to determine score
+        thisScore = 0
+
+        if self.drink == drinkImage.drink_day_state:
+            drinkImage.score += 3
+            thisScore += 3
+
+        if drinkImage.specified_date == datetime.date.today():
+            drinkImage.score += 5
+            thisScore += 5
+
+        return thisScore
+
     def selection_time_delta(self):
-        return (datetime.datetime.now()-self.lastSelectionTime).total_seconds()
+        return (datetime.datetime.now() - self.lastSelectionTime).total_seconds()
 
 
 class DrinkOrNotDrink(object):
 
-    def __init__(self, invert=True):
+    def __init__(self):
         print('init drinkOrNotDrink')
+        self.config = configparser.ConfigParser()
+        self.config.sections()
+        self.config.read('drink_config.ini')
+        self.invert = self.config['main']['invert']
 
-        self.invert = invert
+        if 'false' in self.invert.lower():
+            self.invert = False
+        elif 'true' in self.invert.lower():
+            self.invert = True
 
-
+        self.day = None
+        self.dayOfYear = None
         self.update()
+
 
     def update(self):
 
         self.day = datetime.date.today()
         self.dayOfYear = datetime.datetime.now().timetuple().tm_yday
-        #print('day of year is', self.dayOfYear)
-        print('invert is', self.invert)
 
         if self.invert:
-            #print('inverting')
             divide = 0
         else:
-            #print('not inverting')
             divide = 1
-        #print('divide is', divide)
 
-        if self.dayOfYear%2 == divide:
+        if self.dayOfYear % 2 == divide:
             self.drink = True
         else:
             self.drink = False
@@ -223,8 +224,8 @@ class DrinkOrNotDrink(object):
         return self.drink
 
     def get(self):
+        self.update()
         return self.drink
-
 
 
 if __name__ == "__main__":
@@ -232,17 +233,8 @@ if __name__ == "__main__":
     s = Sync()
 
     while True:
-
         print("running")
         r = Ranks(path)
         selection = r.select()
         print(selection)
-        #pprint(r.ranking)
-
-
-
-
-
-
-
-
+        # pprint(r.ranking)
