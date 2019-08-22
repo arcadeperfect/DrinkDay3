@@ -5,29 +5,25 @@ import datetime
 from dd_screen_display import screen_display
 import dd
 import threading
+import configparser
+from dd_util import get_img_path
 
 if platform == "darwin":
     osx = True
     pi = False
+
 else:
     pi = True
     osx = False
 
-display_live = False
-sync_live = True
-path = './resources/images'
-update_interval = 5
-sync_interval = 10
+enable_display = False
+enable_sync = False
+path = get_img_path()
+update_interval = 2
+sync_interval = 1000
 
-if sync_live:
-
+if enable_sync:
     sync = dd.Sync(path)
-rank = dd.Ranks(path)
-selection = rank.select()
-display = screen_display(selection, mult=10)
-today = datetime.date.today()
-lastUpdate = datetime.datetime.now()
-
 
 # TODO: split syncing into own thread
 # TODO: why is syncing suddenly slow
@@ -38,13 +34,16 @@ c = 0
 while True:
 
     if c == 0:
-        print("\n\n#### begin loop ####\n\n")
-    print(c)
-
-
+        print("\n\n#### init loop ####\n\n")
+        rank = dd.Ranks(path)
+        selection = rank.select()
+        display = screen_display(selection, mult=10)
+        today = datetime.date.today()
+        lastUpdate = datetime.datetime.now()
+    #print(c)
 
     # if reached sync interval, attempt sync
-    if sync_live:
+    if enable_sync:
         # time since last SYNC attempt
         time_since_check = (datetime.datetime.now() - sync.lastSync).total_seconds()
 
@@ -64,5 +63,5 @@ while True:
 
     display.update()  # update the display loop (needed for pygame eventloop to enable quitting)
     today = datetime.date.today()
-    time.sleep(0.1)
+    time.sleep(1)
     c += 1

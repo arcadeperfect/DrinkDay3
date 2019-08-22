@@ -12,7 +12,6 @@ from pprint import pprint
 import configparser
 
 
-path = "./resources/images"
 format = "%(asctime)s: %(message)s"
 logging.basicConfig(format=format,
                     level=logging.INFO,
@@ -29,7 +28,7 @@ class Sync(object):
         self.config.read('ftp_config.ini')
         self.path = self.config['main']['path']
 
-        self.absolute_download_path = os.path.join(os.path.dirname(__file__), 'resources/images')
+        self.absolute_download_path = os.path.join(os.path.dirname(__file__), self.path)
         self.sync_files()
         self.lastSync = datetime.datetime.now()
 
@@ -76,7 +75,6 @@ class Sync(object):
 class Parse(object):
 
     # class to find images and parse the arguments into DrinkImage objects
-    # TODO: maybe incorporate into the DrinkImage class
 
     def __init__(self, path):
         self.path = path
@@ -110,7 +108,7 @@ class Parse(object):
         except:
             date_object = None
 
-        image = DrinkImage(
+        image = DrinkImage(     # crate new DrinkImage object
             name=name,
             file_name=file_name,
             priority=options.priority,
@@ -121,6 +119,7 @@ class Parse(object):
         return image
 
     def get_drink_images(self):
+
         return self.drink_image_list
 
 
@@ -142,35 +141,36 @@ class Ranks(object):
 
     def __init__(self, path):
         print("init ranks")
-        # self.ranking = [] # don't think i need this
-        self.drinkOrNotDrink = DrinkOrNotDrink()  # boolean to invert current drinkDay state
-        self.drink = self.drinkOrNotDrink.get()  # determine if today is a drinkDay
-        self.path = path  # set location of image files
-        self.parse()  # create DrinkImage objects from files, create init score
+        self.drinkOrNotDrink = DrinkOrNotDrink()    # boolean to invert current drinkDay state
+        self.drink = self.drinkOrNotDrink.get()     # determine if today is a drinkDay
+        self.path = path                            # set location of image files
+        self.parse()                                # create DrinkImage objects from files, create init score
 
     def parse(self):
 
         self.pool = []
-        for i in Parse(path).get_drink_images():
+        for i in Parse(self.path).get_drink_images():
             self.pool.append(i)
         if len(self.pool) == 0:
             print("no images!")
             exit()
 
-    def select(self):  # select an image based on scoring and chaning conditions
+    def select(self):                               # select an image based on scoring and chaning conditions
+        self.parse()
         self.drink = self.drinkOrNotDrink.get()
         ranks = []
         for i in self.pool:
-            if i.drink_day_state == self.drink:
-                self.score_image(i)
-                ranks.append([i.score, i])
+            # if i.drink_day_state == self.drink:
+            self.score_image(i)
+            ranks.append([i.score, i])
         ranks = sorted(ranks, reverse=True, key=itemgetter(0))
         pool = [x[1] for x in ranks if x[0] == ranks[0][0]]
         selection = pool[randint(0, len(pool) - 1)]
         self.lastSelectionTime = datetime.datetime.now()
+        print('selected', selection.name)
         return selection
 
-    def score_image(self, drinkImage):  # logic to determine score
+    def score_image(self, drinkImage):              # logic to determine score
         thisScore = 0
 
         if self.drink == drinkImage.drink_day_state:
@@ -180,7 +180,6 @@ class Ranks(object):
         if drinkImage.specified_date == datetime.date.today():
             drinkImage.score += 5
             thisScore += 5
-
         return thisScore
 
     def selection_time_delta(self):
@@ -205,7 +204,6 @@ class DrinkOrNotDrink(object):
         self.dayOfYear = None
         self.update()
 
-
     def update(self):
 
         self.day = datetime.date.today()
@@ -226,15 +224,3 @@ class DrinkOrNotDrink(object):
     def get(self):
         self.update()
         return self.drink
-
-
-if __name__ == "__main__":
-
-    s = Sync()
-
-    while True:
-        print("running")
-        r = Ranks(path)
-        selection = r.select()
-        print(selection)
-        # pprint(r.ranking)

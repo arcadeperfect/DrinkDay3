@@ -4,7 +4,7 @@ import os
 
 class screen_display(object):
 
-    def __init__(self, drinkImage, mult = 20):
+    def __init__(self, drinkImage, mult=20):
         pygame.init()
         self.X = 32
         self.Y = 16
@@ -15,16 +15,15 @@ class screen_display(object):
         self.display_surface = pygame.display.set_mode((self.X, self.Y))
         self.image = self.load_image(os.path.join(self.image_location, drinkImage.file_name))
         self.display_surface.blit(self.image, (0, 0))
-        #pygame.display.update()
+        # pygame.display.update()
         self.update()
-
 
     def update(self):
 
         self.display_surface.blit(self.image, (0, 0))
 
         for event in pygame.event.get():
-            #print(event)
+            # print(event)
 
             if event.type == pygame.QUIT:
                 pygame.quit()
