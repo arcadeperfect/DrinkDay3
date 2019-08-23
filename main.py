@@ -1,22 +1,19 @@
-from sys import platform
-import logging
-import time
 import datetime
-from dd_screen_display import screen_display
+import time
+from sys import platform
 import dd
-import threading
-import configparser
+
 from dd_util import get_img_path
 
 if platform == "darwin":
     osx = True
     pi = False
+    from dd_pygame_display import display
 
 else:
     pi = True
     osx = False
 
-enable_display = False
 enable_sync = False
 path = get_img_path()
 update_interval = 2
@@ -29,7 +26,6 @@ if enable_sync:
 # TODO: why is syncing suddenly slow
 # TODO: replace prints with logs
 
-
 c = 0
 while True:
 
@@ -37,10 +33,10 @@ while True:
         print("\n\n#### init loop ####\n\n")
         rank = dd.Ranks(path)
         selection = rank.select()
-        display = screen_display(selection, mult=10)
+        display = display(selection, mult=10)
         today = datetime.date.today()
         lastUpdate = datetime.datetime.now()
-    #print(c)
+    # print(c)
 
     # if reached sync interval, attempt sync
     if enable_sync:

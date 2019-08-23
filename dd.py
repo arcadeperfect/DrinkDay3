@@ -1,16 +1,14 @@
-from ftplib import FTP
-import os
-import logging
-from os import listdir
-import datetime
 # from datetime import datetime
 import argparse
-import shlex
-from operator import itemgetter
-from random import randint
-from pprint import pprint
 import configparser
-
+import datetime
+import logging
+import os
+import shlex
+from ftplib import FTP
+from operator import itemgetter
+from os import listdir
+from random import randint
 
 format = "%(asctime)s: %(message)s"
 logging.basicConfig(format=format,
@@ -108,7 +106,7 @@ class Parse(object):
         except:
             date_object = None
 
-        image = DrinkImage(     # crate new DrinkImage object
+        image = DrinkImage(  # crate new DrinkImage object
             name=name,
             file_name=file_name,
             priority=options.priority,
@@ -141,10 +139,12 @@ class Ranks(object):
 
     def __init__(self, path):
         print("init ranks")
-        self.drinkOrNotDrink = DrinkOrNotDrink()    # boolean to invert current drinkDay state
-        self.drink = self.drinkOrNotDrink.get()     # determine if today is a drinkDay
-        self.path = path                            # set location of image files
-        self.parse()                                # create DrinkImage objects from files, create init score
+        self.drinkOrNotDrink = DrinkOrNotDrink()  # boolean to invert current drinkDay state
+        self.drink = self.drinkOrNotDrink.get()  # determine if today is a drinkDay
+        self.path = path  # set location of image files
+        self.parse()  # create DrinkImage objects from files, create init score
+        self.lastSelectionTime = None
+        self.pool = None
 
     def parse(self):
 
@@ -155,7 +155,7 @@ class Ranks(object):
             print("no images!")
             exit()
 
-    def select(self):                               # select an image based on scoring and chaning conditions
+    def select(self):  # select an image based on scoring and chaning conditions
         self.parse()
         self.drink = self.drinkOrNotDrink.get()
         ranks = []
@@ -170,17 +170,17 @@ class Ranks(object):
         print('selected', selection.name)
         return selection
 
-    def score_image(self, drinkImage):              # logic to determine score
-        thisScore = 0
+    def score_image(self, drinkImage):  # logic to determine score
+        this_score = 0
 
         if self.drink == drinkImage.drink_day_state:
             drinkImage.score += 3
-            thisScore += 3
+            this_score += 3
 
         if drinkImage.specified_date == datetime.date.today():
             drinkImage.score += 5
-            thisScore += 5
-        return thisScore
+            this_score += 5
+        return this_score
 
     def selection_time_delta(self):
         return (datetime.datetime.now() - self.lastSelectionTime).total_seconds()
