@@ -13,6 +13,7 @@ if platform == "darwin":
 else:
     pi = True
     osx = False
+    from dd_matrix_display import display
 
 enable_sync = False
 path = get_img_path()
