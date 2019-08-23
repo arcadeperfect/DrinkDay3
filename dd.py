@@ -17,10 +17,6 @@ logging.basicConfig(format=format,
                     level=logging.INFO,
                     datefmt="%H:%M:%S")
 
-#TODO: sort out date time weirdness - what is "to object"?
-
-
-
 class Sync(object):
     # sync local image files with remote ftp
 
@@ -32,33 +28,39 @@ class Sync(object):
         self.lastSync = datetime.datetime.now()
 
     def sync_files(self):
-        print("syncing")
-        address = 'ftp.rojanasakul.com'
-        account = 'rjnskl@rojanasakul.com'
-        password = '+1nWVNaIL|D"XS'
+        try:
+            d = g
+            print("syncing")
+            address = 'ftp.rojanasakul.com'
+            account = 'rjnskl@rojanasakul.com'
+            password = '+1nWVNaIL|D"XS'
 
-        ignore = ['.', '..']
-        listing = []
-        files = []
-        ftp = FTP(address)
-        ftp.login(account, password)
-        ftp.cwd('drinkDay')
-        ftp.retrlines("LIST", listing.append)
-        number_of_downloades = 0
+            ignore = ['.', '..']
+            listing = []
+            files = []
+            ftp = FTP(address)
+            ftp.login(account, password)
+            ftp.cwd('drinkDay')
+            ftp.retrlines("LIST", listing.append)
+            number_of_downloades = 0
 
-        for l in listing:
-            filename = l.split(None, 8)[-1].lstrip()
+            for l in listing:
+                filename = l.split(None, 8)[-1].lstrip()
 
-            if not filename in ignore and not filename in self.list_downloaded_images(self.path):
-                local_filename = os.path.join(self.absolute_download_path, filename)
-                lf = open(local_filename, "wb")
-                ftp.retrbinary("RETR " + filename, lf.write, 8 * 1024)
-                lf.close()
-                files.append(filename)
-                logging.info(f"downloaded {l}")
-                number_of_downloades += 1
+                if not filename in ignore and not filename in self.list_downloaded_images(self.path):
+                    local_filename = os.path.join(self.absolute_download_path, filename)
+                    lf = open(local_filename, "wb")
+                    ftp.retrbinary("RETR " + filename, lf.write, 8 * 1024)
+                    lf.close()
+                    files.append(filename)
+                    logging.info(f"downloaded {l}")
+                    number_of_downloades += 1
 
-        logging.info(f"downloaded {number_of_downloades} images")
+            logging.info(f"downloaded {number_of_downloades} images")
+            self.lastSync = datetime.datetime.now()
+        except:
+            print("syncing failed")
+
         self.lastSync = datetime.datetime.now()
 
     def list_downloaded_images(self, path):
@@ -66,31 +68,6 @@ class Sync(object):
         return files
 
 
-class DrinkImage(object):
-
-    # class to hold the image and associated meta data, also calculates score
-
-    def __init__(self, name, file_name, priority=0, specified_date=None, drink_day_state=None, score=0):
-        self.name = name
-        self.file_name = file_name
-        self.priority = priority
-        self.specified_date = specified_date
-        self.drink_day_state = drink_day_state
-        self.score = score
-        self.score_image()
-        self.time = None
-
-    def score_image(self):
-        #TODO: add some more scoring logic
-
-        if self.drink_day_state == current_day_drinkDay_state:
-            self.score = 3
-
-        if self.specified_date == datetime.date.today():
-            self.score += 5
-
-    def stamp_time(self):   # to record the time it was selected
-        self.time = datetime.datetime.now()
 
 class Parse(object):
 
@@ -125,7 +102,7 @@ class Parse(object):
         # convert date string from argument into datetime object
         try:
             date_object = datetime.date(int(options.date[0:2]) + 2000, int(options.date[2:4]), int(options.date[4:7]))
-            print(date_object)
+
         except:
             date_object = None
 
@@ -142,21 +119,58 @@ class Parse(object):
     def get_drink_images(self):
         return self.drink_image_list
 
+class DrinkImage(object):
+
+    # class to hold the image and associated meta data, also calculates score
+
+    def __init__(self, name, file_name, priority=0, specified_date=None, drink_day_state=None, score=0):
+        self.name = name
+        self.file_name = file_name
+        self.priority = priority
+        self.specified_date = specified_date
+        self.drink_day_state = drink_day_state
+        self.time = None
+        self.score = None
+
 
 class Ranks(object):
 
     def __init__(self, path):
         print("init ranks")
-        self.ranking = []
-        self.path = path
-        self.parse()
-        self.sort()
-
+        #self.ranking = [] # don't think i need this
+        self.drinkObject = DrinkOrNotDrink(invert=False)     # boolean to invert current drinkDay state
+        self.drink = self.drinkObject.get()                 # determine if today is a drinkDay
+        self.path = path                                    # set location of image files
+        self.parse()                                        # create DrinkImage objects from files, create init score
+        self.sort()                                         # sort the ran by score
 
     def parse(self):
         self.ranking = []
         for i in Parse(path).get_drink_images():
-            self.ranking.append([i.score, i.name, i])
+            score = self.score_image(i)
+            self.ranking.append([score, i.name, i])
+
+    def update_scores(self):
+
+        for i in self.ranking:
+            self.drinkObject.update()
+            thisScore = self.score_image(i[2])              # run on drinkImage, which is 3rd element in list
+            i[0] = thisScore                                # set first list element as score for sorting #TODO: refactor this into oblivion
+            i[2].score = thisScore                          # set drinkImage object's own score variable
+
+    def score_image(self,drinkImage):                       # logic to determine score
+        thisScore = 0
+        # print("scoring")
+        # print("self.drink = ", self.drink)
+        # print("drinkImage.drink_day_state = ", drinkImage.drink_day_state)
+        if self.drink == drinkImage.drink_day_state:
+            #drinkImage.score += 3
+            thisScore += 3
+
+        if drinkImage.specified_date == datetime.date.today():
+            #drinkImage.score += 5
+            thisScore += 5
+        return thisScore
 
     def sort(self):
         s = sorted(self.ranking, reverse=True, key=itemgetter(0))
@@ -165,17 +179,21 @@ class Ranks(object):
 
     def select(self):
 
-        #top_rank = self.ranking[0][0]
-
         pool = [x[2] for x in self.ranking if x[0] == self.ranking[0][0]] # create selection pool of entries sharing the highest score
+        self.drinkObject.update()
+        self.update_scores()
         selection = pool[randint(0,len(pool)-1)]
-        selection.stamp_time()
-        print('selected', selection.name)
+        self.lastSelectionTime = datetime.datetime.now()
         return selection
+
+    def selection_time_delta(self):
+        return (datetime.datetime.now()-self.lastSelectionTime).total_seconds()
+
 
 class DrinkOrNotDrink(object):
 
-    def __init__(self, invert=False):
+    def __init__(self, invert=True):
+        print('init drinkOrNotDrink')
 
         self.invert = invert
 
@@ -186,16 +204,22 @@ class DrinkOrNotDrink(object):
 
         self.day = datetime.date.today()
         self.dayOfYear = datetime.datetime.now().timetuple().tm_yday
+        #print('day of year is', self.dayOfYear)
+        print('invert is', self.invert)
 
         if self.invert:
+            #print('inverting')
             divide = 0
         else:
+            #print('not inverting')
             divide = 1
+        #print('divide is', divide)
 
         if self.dayOfYear%2 == divide:
             self.drink = True
         else:
             self.drink = False
+        print('drinkday is', self.drink, '\n')
         return self.drink
 
     def get(self):
